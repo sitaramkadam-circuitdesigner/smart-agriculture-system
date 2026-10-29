@@ -1,0 +1,518 @@
+<!DOCTYPE html>
+<html lang="mr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Agrinova Tech | Solar Powered Smart Agriculture System</title>
+<meta name="description" content="Solar powered smart irrigation: sensors and an ESP32 decide when to water, with live field readings.">
+<meta name="theme-color" content="#12331f">
+<meta property="og:title" content="Agrinova Tech | Solar Powered Smart Agriculture System">
+<meta property="og:description" content="Sensors and an ESP32 decide when to water, automatically. Live monitoring on any phone.">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><circle cx='32' cy='32' r='30' fill='%231f5d3a'/><path d='M32 50C20 44 18 30 32 16c14 14 12 28 0 34z' fill='%23fff'/></svg>">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Noto+Sans+Devanagari:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#f4f7f1;--bg2:#eaf0e5;--panel:#fff;--ink:#14231a;--mut:#56685c;--line:#d8e2d3;--green:#1f5d3a;--leaf:#3c9a5f;--sun:#f2a900;--water:#2a7fba;--warn:#b5461e;--off:#8b958e;--deep:#0e2a19;--shadow:0 1px 2px rgba(18,51,31,.06),0 8px 24px -12px rgba(18,51,31,.18);--r:16px}
+@media (prefers-color-scheme:dark){:root{--bg:#0d1711;--bg2:#121e16;--panel:#16241b;--ink:#e8f0ea;--mut:#9db2a4;--line:#27382d;--green:#6fcf97;--leaf:#5fbf86;--sun:#f5b93a;--water:#6db3ee;--warn:#f0a070;--off:#76857b;--shadow:0 1px 2px rgba(0,0,0,.3),0 10px 28px -14px rgba(0,0,0,.6)}}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth;scroll-padding-top:76px;-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:"Manrope","Noto Sans Devanagari","Segoe UI",system-ui,sans-serif;line-height:1.65;font-size:16px;-webkit-font-smoothing:antialiased}
+a{color:inherit}
+:focus-visible{outline:3px solid var(--sun);outline-offset:3px;border-radius:6px}
+.wrap{max-width:1120px;margin:0 auto;padding:0 20px}
+section{padding:72px 0}
+.sh{margin-bottom:30px;max-width:68ch}
+.sh h2{font-size:clamp(1.6rem,3vw,2.15rem);line-height:1.2;margin:0 0 10px;font-weight:800;letter-spacing:-.01em;padding-left:16px;border-left:5px solid var(--sun)}
+.lead{color:var(--mut);margin:0;font-size:1.05rem}
+.sub{font-size:1.15rem;font-weight:800;margin:44px 0 14px;letter-spacing:-.005em}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:var(--r);padding:20px;box-shadow:var(--shadow)}
+.card h3{margin:0 0 6px;font-size:1.05rem;font-weight:700}
+.card p{margin:0;color:var(--mut);font-size:.95rem}
+.grid{display:grid;gap:16px}.g2{grid-template-columns:repeat(2,1fr)}.g3{grid-template-columns:repeat(3,1fr)}
+@media(max-width:900px){.g3{grid-template-columns:repeat(2,1fr)}}
+@media(max-width:620px){.g2,.g3{grid-template-columns:1fr}}
+
+/* progress + top */
+#prog{position:fixed;top:0;left:0;height:3px;width:0;background:linear-gradient(90deg,var(--leaf),var(--sun));z-index:120}
+#top{position:fixed;right:18px;bottom:calc(18px + env(safe-area-inset-bottom,0px));width:44px;height:44px;border-radius:50%;border:1px solid var(--line);background:var(--panel);color:var(--ink);box-shadow:var(--shadow);cursor:pointer;display:grid;place-items:center;opacity:0;pointer-events:none;transition:opacity .2s;z-index:60}
+#top.show{opacity:1;pointer-events:auto}
+#top svg{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round}
+
+/* gate */
+#gate{position:fixed;inset:0;z-index:200;background:radial-gradient(circle at 50% 30%,#1c4a2e,#0e2a19 70%);color:#fff;display:flex;align-items:center;justify-content:center;text-align:center;padding:24px}
+#gate .logo{width:112px;height:112px;margin:0 auto 16px;display:block}
+#gate h1{margin:0;font-size:1.8rem;font-weight:800}
+#gate p{margin:6px 0 24px;opacity:.82}
+.langs{display:flex;gap:14px;justify-content:center;flex-wrap:wrap}
+.langs button{font:inherit;font-weight:800;font-size:1.1rem;min-width:156px;padding:14px 24px;border-radius:12px;border:2px solid var(--sun);background:transparent;color:#fff;cursor:pointer;transition:background .15s,color .15s}
+.langs button:hover,.langs button:focus-visible{background:var(--sun);color:#12331f}
+
+/* header */
+header{position:sticky;top:0;z-index:100;background:color-mix(in srgb,var(--panel) 88%,transparent);backdrop-filter:saturate(1.4) blur(12px);-webkit-backdrop-filter:saturate(1.4) blur(12px);border-bottom:1px solid var(--line);padding-top:env(safe-area-inset-top,0px)}
+.bar{display:flex;align-items:center;gap:16px;height:62px}
+.brand{display:flex;align-items:center;gap:10px;font-weight:800;text-decoration:none;white-space:nowrap;letter-spacing:-.01em}
+.brand svg{width:36px;height:36px}
+nav{margin-left:auto;display:flex;gap:4px;overflow-x:auto;scrollbar-width:none;font-size:.9rem;font-weight:600}
+nav::-webkit-scrollbar{display:none}
+nav a{text-decoration:none;color:var(--mut);white-space:nowrap;padding:7px 12px;border-radius:99px;transition:background .15s,color .15s}
+nav a:hover{color:var(--green);background:var(--bg2)}
+nav a.act{color:var(--green);background:var(--bg2)}
+#langBtn{font:inherit;font-weight:700;font-size:.85rem;border:1px solid var(--line);background:var(--panel);color:var(--ink);border-radius:99px;padding:6px 14px;cursor:pointer;flex:none}
+#langBtn:hover{border-color:var(--leaf)}
+@media(max-width:700px){.brand span{display:none}.bar{gap:8px}}
+
+/* hero */
+.hero{position:relative;background:var(--deep);color:#fff;padding:84px 0 76px;overflow:hidden;isolation:isolate}
+.hero::before{content:"";position:absolute;inset:0;z-index:-1;background:
+ radial-gradient(600px 320px at 85% 15%,rgba(242,169,0,.20),transparent 70%),
+ radial-gradient(700px 400px at 5% 110%,rgba(60,154,95,.28),transparent 70%),
+ repeating-linear-gradient(100deg,rgba(255,255,255,.035) 0 2px,transparent 2px 46px)}
+.hero .wrap{display:grid;grid-template-columns:1.15fr .85fr;gap:44px;align-items:center}
+.tag{display:inline-flex;align-items:center;gap:8px;border:1px solid rgba(242,169,0,.5);color:#f7d27a;border-radius:99px;padding:5px 14px;font-size:.85rem;font-weight:700;margin-bottom:18px}
+.tag svg{width:18px;height:18px}
+.hero h1{font-size:clamp(2rem,4.6vw,3.3rem);line-height:1.12;margin:0 0 16px;font-weight:800;letter-spacing:-.02em}
+.hero p{margin:0 0 10px;opacity:.88;max-width:52ch;font-size:1.05rem}
+.motto{color:#f7d27a;font-weight:700;opacity:1!important}
+.chips{display:flex;gap:8px;flex-wrap:wrap;margin-top:20px}
+.chip{border:1px solid rgba(242,169,0,.45);color:#f7d27a;border-radius:99px;padding:4px 14px;font-size:.85rem;font-weight:600}
+.btns{display:flex;gap:12px;flex-wrap:wrap;margin-top:26px}
+.btn{display:inline-flex;align-items:center;gap:8px;background:var(--sun);color:#12331f;font-weight:800;text-decoration:none;border-radius:12px;padding:12px 22px;transition:transform .15s,box-shadow .15s}
+.btn:hover{transform:translateY(-2px);box-shadow:0 10px 24px -8px rgba(242,169,0,.55)}
+.btn.ghost{background:transparent;color:#fff;border:1.5px solid rgba(255,255,255,.35)}
+.btn.ghost:hover{box-shadow:none;border-color:#fff}
+
+/* hero console */
+.console{background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.16);border-radius:20px;padding:20px;backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);box-shadow:0 30px 60px -30px rgba(0,0,0,.6)}
+.console .top{display:flex;align-items:center;gap:12px;margin-bottom:16px}
+.console .top svg{width:46px;height:46px;flex:none}
+.console .top b{display:block;font-size:1.02rem}
+.console .top span{font-size:.82rem;opacity:.75}
+.live-pill{margin-left:auto;display:inline-flex;align-items:center;gap:7px;font-size:.78rem;font-weight:700;border-radius:99px;padding:4px 11px;background:rgba(181,70,30,.25);color:#ffc3a8;white-space:nowrap}
+.live-pill i{width:8px;height:8px;border-radius:50%;background:currentColor}
+.live-pill.on{background:rgba(60,154,95,.25);color:#a8f0c4}
+.live-pill.on i{animation:pulse 1.8s infinite}
+@keyframes pulse{0%{box-shadow:0 0 0 0 rgba(168,240,196,.7)}100%{box-shadow:0 0 0 9px rgba(168,240,196,0)}}
+.mini{display:grid;gap:12px}
+.mini .m{background:rgba(0,0,0,.22);border-radius:12px;padding:12px 14px}
+.mini .m .l{display:flex;justify-content:space-between;align-items:baseline;font-size:.86rem;opacity:.85}
+.mini .m .l b{font-size:1.35rem;opacity:1;color:#fff}
+.mini .m .l small{font-size:.8rem;opacity:.7;margin-left:2px}
+.mini .bar2{background:rgba(255,255,255,.14)}
+.mini .pumprow b.on{color:#9dd4f5}
+.hero .rise{animation:rise .7s cubic-bezier(.2,.7,.2,1) both}
+.hero .rise2{animation:rise .7s .15s cubic-bezier(.2,.7,.2,1) both}
+@keyframes rise{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:none}}
+@media(max-width:860px){.hero .wrap{grid-template-columns:1fr}.hero{padding:56px 0 52px}}
+
+/* live */
+#live{background:var(--panel);border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
+.status{display:flex;align-items:center;gap:12px;padding:15px 18px;border-radius:14px;border:1px solid var(--line);background:var(--bg);margin-bottom:16px;font-weight:700;flex-wrap:wrap}
+.status .dot{width:12px;height:12px;border-radius:50%;background:var(--off);flex:none}
+.status.on{border-color:var(--leaf);background:color-mix(in srgb,var(--leaf) 9%,var(--panel))}
+.status.on .dot{background:var(--leaf);box-shadow:0 0 0 5px #3c9a5f33}
+.status.off{border-color:var(--warn);color:var(--warn);background:color-mix(in srgb,var(--warn) 7%,var(--panel))}
+.status.off .dot{background:var(--warn)}
+.status small{margin-left:auto;font-weight:500;color:var(--mut)}
+.tiles{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
+@media(max-width:760px){.tiles{grid-template-columns:repeat(2,1fr)}}
+.tile{background:var(--bg);border:1px solid var(--line);border-radius:14px;padding:16px;position:relative;overflow:hidden}
+.tile::after{content:"";position:absolute;left:0;top:0;bottom:0;width:4px;background:var(--c,var(--leaf))}
+.tile .n{color:var(--mut);font-size:.88rem;font-weight:600}
+.tile .v{font-size:2rem;font-weight:800;letter-spacing:-.02em;line-height:1.25}
+.tile .v small{font-size:.95rem;color:var(--mut);font-weight:600;margin-left:3px}
+.tile.t1{--c:var(--sun)}.tile.t2{--c:var(--water)}.tile.t3{--c:var(--leaf)}.tile.t4{--c:var(--water)}.tile.t5{--c:var(--off)}.tile.pump{--c:var(--off)}
+.tile.pump.on{--c:var(--water);border-color:var(--water)}.tile.pump.on .v{color:var(--water)}
+.bar2{height:8px;background:var(--line);border-radius:5px;margin-top:8px;overflow:hidden}
+.bar2 i{display:block;height:100%;width:0;background:var(--leaf);border-radius:5px;transition:width .6s}
+.bar2.w i{background:var(--water)}
+.note{margin-top:14px;color:var(--mut);font-size:.88rem}
+
+/* cards with icons */
+.ic{width:44px;height:44px;border-radius:12px;display:grid;place-items:center;background:color-mix(in srgb,var(--leaf) 15%,var(--panel));color:var(--green);margin-bottom:12px}
+.ic svg{width:24px;height:24px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.prob{border-left:4px solid var(--warn)}
+.prob h3{color:var(--warn)}
+.blk{border-top:4px solid var(--green)}
+.steps{counter-reset:s}
+.steps .card{position:relative;padding-left:64px}
+.steps .card::before{counter-increment:s;content:counter(s);position:absolute;left:18px;top:18px;width:32px;height:32px;border-radius:50%;background:var(--green);color:var(--bg);display:grid;place-items:center;font-weight:800;font-size:.92rem}
+.rule{background:linear-gradient(135deg,#12331f,#1c4a2e);color:#fff;border-radius:var(--r);padding:22px 24px;margin-top:18px;font-weight:600;box-shadow:var(--shadow)}
+.rule b{color:#f7d27a}
+.scale{margin-top:30px;padding:0 6px 22px}
+.track{position:relative;height:10px;border-radius:6px;background:rgba(255,255,255,.18)}
+.track .zone{position:absolute;top:0;bottom:0;border-radius:6px;background:linear-gradient(90deg,var(--sun),var(--leaf))}
+.track .tk{position:absolute;top:-6px;width:2px;height:22px;background:#fff;transform:translateX(-1px)}
+.track .tk em{position:absolute;top:26px;left:50%;transform:translateX(-50%);font-style:normal;font-size:.8rem;font-weight:800;color:#f7d27a;white-space:nowrap}
+.alt{background:var(--panel);border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
+
+/* software */
+.two{display:grid;grid-template-columns:1fr 1fr;gap:16px}@media(max-width:760px){.two{grid-template-columns:1fr}}
+.on-list{border-top:4px solid var(--leaf)}.off-list{border-top:4px solid var(--warn)}
+.on-list h3{color:var(--leaf)}.off-list h3{color:var(--warn)}
+ul.clean{margin:10px 0 0;padding-left:20px;color:var(--mut)}ul.clean li{margin:6px 0}
+.tbl{overflow-x:auto;padding:0}
+table{border-collapse:collapse;width:100%;font-size:.94rem}
+th,td{text-align:left;padding:12px 18px;border-bottom:1px solid var(--line);white-space:nowrap}
+th{background:var(--bg2);color:var(--mut);font-weight:700;font-size:.85rem}
+tr:last-child td{border-bottom:0}
+tbody tr:hover td{background:var(--bg)}
+td:first-child{font-weight:700}
+td:last-child{font-weight:700;color:var(--green)}
+
+/* team */
+.profile{display:grid;grid-template-columns:auto 1fr;gap:26px;align-items:center;max-width:720px;padding:28px}
+.avatar{width:104px;height:104px;border-radius:50%;background:linear-gradient(135deg,var(--green),var(--leaf));color:#fff;display:grid;place-items:center;font-weight:800;font-size:2.2rem;box-shadow:0 0 0 5px var(--bg2),0 0 0 7px var(--sun)}
+.profile h3{font-size:1.45rem;margin:0 0 6px;letter-spacing:-.01em}
+.badge{display:inline-block;background:var(--sun);color:#2b2100;font-weight:800;font-size:.8rem;border-radius:99px;padding:3px 13px}
+.pt{margin:12px 0 0;color:var(--mut);font-weight:600}
+.pl{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px}
+.pl a{font-size:.85rem;font-weight:700;text-decoration:none;border:1px solid var(--line);border-radius:99px;padding:5px 14px;color:var(--ink);transition:border-color .15s,color .15s}
+.pl a:hover{border-color:var(--leaf);color:var(--green)}
+@media(max-width:560px){.profile{grid-template-columns:1fr;text-align:center;justify-items:center}.pl{justify-content:center}}
+
+/* contact */
+.contact{display:grid;grid-template-columns:repeat(2,1fr);gap:16px}@media(max-width:620px){.contact{grid-template-columns:1fr}}
+.ct{display:flex;align-items:center;gap:16px;text-decoration:none;transition:transform .15s,border-color .15s}
+.ct:hover{border-color:var(--leaf);transform:translateY(-2px)}
+.ico{flex:none;width:52px;height:52px;border-radius:14px;display:grid;place-items:center}
+.ico svg{width:27px;height:27px;fill:none;stroke:#fff;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.ct b{display:block}.ct span{color:var(--mut);font-size:.9rem;word-break:break-all}
+
+footer{background:var(--deep);color:#cfe3d6;padding:38px 0 calc(34px + env(safe-area-inset-bottom,0px));text-align:center;font-size:.92rem}
+footer b{color:#fff;letter-spacing:.02em}
+footer p{margin:10px 0 0}
+.fl{display:flex;gap:6px 18px;justify-content:center;flex-wrap:wrap;margin-top:16px;font-size:.85rem}
+.fl a{color:#9fc4ad;text-decoration:none}.fl a:hover{color:#fff}
+
+@media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}*{animation:none!important;transition:none!important}}
+@media print{#gate,#top,#prog,header,.btns{display:none!important}section{padding:24px 0}.hero{background:#fff;color:#000}}
+</style>
+</head>
+<body>
+<div id="prog"></div>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
+<symbol id="logo" viewBox="0 0 120 120">
+  <circle cx="60" cy="60" r="56" fill="#1f5d3a"/>
+  <circle cx="60" cy="60" r="56" fill="none" stroke="#f2a900" stroke-width="3"/>
+  <g stroke="#f2a900" stroke-width="4" stroke-linecap="round"><path d="M60 14v10M30 26l7 7M90 26l-7 7M16 54h10M104 54h-10"/></g>
+  <path d="M38 52a22 22 0 0 1 44 0z" fill="#f2a900"/>
+  <path d="M60 100C38 90 34 66 60 40c26 26 22 50 0 60z" fill="#fff"/>
+  <path d="M60 46v50" stroke="#1f5d3a" stroke-width="3" stroke-linecap="round"/>
+  <path d="M60 70c-7-1-12-5-14-10M60 82c8-1 13-5 15-11" stroke="#1f5d3a" stroke-width="3" fill="none" stroke-linecap="round"/>
+  <path d="M92 78c-4 6-7 9-7 13a7 7 0 0 0 14 0c0-4-3-7-7-13z" fill="#2a7fba" stroke="#fff" stroke-width="2"/>
+</symbol></defs></svg>
+
+<div id="gate">
+  <div>
+    <svg class="logo" viewBox="0 0 120 120"><use href="#logo"/></svg>
+    <h1>Agrinova Tech</h1>
+    <p>Solar Powered Smart Agriculture System</p>
+    <p style="margin-bottom:18px;opacity:1;font-weight:700">भाषा निवडा / Select your language</p>
+    <div class="langs">
+      <button onclick="setLang('mr')">मराठी</button>
+      <button onclick="setLang('en')">English</button>
+    </div>
+  </div>
+</div>
+
+<header><div class="wrap bar">
+  <a class="brand" href="#home"><svg viewBox="0 0 120 120"><use href="#logo"/></svg><span>Agrinova Tech</span></a>
+  <nav id="nav">
+    <a href="#live" data-i="nav_live"></a><a href="#about" data-i="nav_about"></a><a href="#work" data-i="nav_work"></a>
+    <a href="#software" data-i="nav_soft"></a><a href="#team" data-i="nav_team"></a><a href="#contact" data-i="nav_contact"></a>
+  </nav>
+  <button id="langBtn" onclick="toggleLang()">EN</button>
+</div></header>
+
+<main>
+<div class="hero" id="home"><div class="wrap">
+  <div class="rise">
+    <div class="tag"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M4.9 19.1L7 17M17 7l2.1-2.1"/></svg>Team Agrinova Tech</div>
+    <h1 data-i="h_title"></h1>
+    <p data-i="h_sub"></p>
+    <p class="motto">Think. Create. Innovate. Present.</p>
+    <div class="chips"><span class="chip" data-i="c1"></span><span class="chip" data-i="c2"></span><span class="chip" data-i="c3"></span><span class="chip" data-i="c4"></span></div>
+    <div class="btns"><a class="btn" href="#live" data-i="h_btn"></a><a class="btn ghost" href="#about" data-i="nav_about"></a></div>
+  </div>
+  <div class="console rise2" aria-label="Live snapshot">
+    <div class="top">
+      <svg viewBox="0 0 120 120"><use href="#logo"/></svg>
+      <div><b>Agrinova Tech</b><span data-i="live_h"></span></div>
+      <span class="live-pill" id="hPill"><i></i><span id="hPillT"></span></span>
+    </div>
+    <div class="mini">
+      <div class="m"><div class="l"><span data-i="t_soil"></span><span><b id="hv_soil">–</b><small>%</small></span></div><div class="bar2"><i id="hb_soil"></i></div></div>
+      <div class="m"><div class="l"><span data-i="t_tank"></span><span><b id="hv_tank">–</b><small>%</small></span></div><div class="bar2 w"><i id="hb_tank"></i></div></div>
+      <div class="m pumprow"><div class="l"><span data-i="t_pump"></span><b id="hv_pump">–</b></div></div>
+    </div>
+  </div>
+</div></div>
+
+<section id="live"><div class="wrap">
+  <div class="sh"><h2 data-i="live_h"></h2><p class="lead" data-i="live_p"></p></div>
+  <div class="status off" id="st"><span class="dot"></span><span id="stText"></span><small id="stSub"></small></div>
+  <div class="tiles">
+    <div class="tile t1"><div class="n" data-i="t_temp"></div><div class="v"><span id="v_temp">–</span><small>°C</small></div></div>
+    <div class="tile t2"><div class="n" data-i="t_hum"></div><div class="v"><span id="v_hum">–</span><small>%</small></div></div>
+    <div class="tile t3"><div class="n" data-i="t_soil"></div><div class="v"><span id="v_soil">–</span><small>%</small></div><div class="bar2"><i id="b_soil"></i></div></div>
+    <div class="tile t4"><div class="n" data-i="t_tank"></div><div class="v"><span id="v_tank">–</span><small>%</small></div><div class="bar2 w"><i id="b_tank"></i></div></div>
+    <div class="tile t5"><div class="n" data-i="t_rain"></div><div class="v" id="v_rain">–</div></div>
+    <div class="tile pump" id="tilePump"><div class="n" data-i="t_pump"></div><div class="v" id="v_pump">–</div></div>
+  </div>
+  <div class="note" data-i="live_note"></div>
+</div></section>
+
+<section id="about"><div class="wrap">
+  <div class="sh"><h2 data-i="a_h"></h2><p class="lead" data-i="a_p"></p></div>
+  <h3 class="sub" data-i="prob_h" style="margin-top:0"></h3>
+  <div class="grid g2" id="probs"></div>
+  <div class="rule" data-i="need"></div>
+  <h3 class="sub" data-i="sol_h"></h3>
+  <div class="grid g3" id="sols"></div>
+</div></section>
+
+<section id="work" class="alt"><div class="wrap">
+  <div class="sh"><h2 data-i="w_h"></h2><p class="lead" data-i="w_p"></p></div>
+  <div class="grid g3" id="blocks"></div>
+  <h3 class="sub" data-i="flow_h"></h3>
+  <div class="grid g3 steps" id="flow"></div>
+  <div class="rule"><span data-i="rule"></span>
+    <div class="scale" aria-hidden="true"><div class="track"><span class="zone" style="left:35%;width:25%"></span><span class="tk" style="left:35%"><em>35 %</em></span><span class="tk" style="left:60%"><em>60 %</em></span></div></div>
+  </div>
+</div></section>
+
+<section id="software"><div class="wrap">
+  <div class="sh"><h2 data-i="s_h"></h2><p class="lead" data-i="s_p"></p></div>
+  <div class="two">
+    <div class="card on-list"><h3 data-i="on_h"></h3><ul class="clean" id="onL"></ul></div>
+    <div class="card off-list"><h3 data-i="off_h"></h3><ul class="clean" id="offL"></ul></div>
+  </div>
+  <h3 class="sub" data-i="prot_h"></h3>
+  <div class="grid g3" id="prot"></div>
+  <h3 class="sub" data-i="pin_h"></h3>
+  <div class="card tbl"><table>
+    <thead><tr><th>Device</th><th>Signal</th><th>ESP32 pin</th></tr></thead>
+    <tbody>
+    <tr><td>DHT22</td><td>Temperature + Humidity</td><td>GPIO 18</td></tr>
+    <tr><td>Rain sensor</td><td>Wet/Dry (DO) · Intensity (AO)</td><td>GPIO 16 · GPIO 35</td></tr>
+    <tr><td>Water level</td><td>Tank level</td><td>GPIO 32</td></tr>
+    <tr><td>Soil moisture</td><td>Soil wetness</td><td>GPIO 34</td></tr>
+    <tr><td>Relay module</td><td>Pump / Valve</td><td>GPIO 23</td></tr>
+    <tr><td>I2C LCD 16x2</td><td>SDA / SCL</td><td>GPIO 21 / 22</td></tr>
+    </tbody>
+  </table></div>
+  <h3 class="sub" data-i="res_h"></h3>
+  <div class="two">
+    <div class="card on-list"><h3 data-i="ach_h"></h3><ul class="clean" id="ach"></ul></div>
+    <div class="card"><h3 data-i="fut_h"></h3><ul class="clean" id="fut"></ul></div>
+  </div>
+</div></section>
+
+<section id="team" class="alt"><div class="wrap">
+  <div class="sh"><h2 data-i="team_h"></h2><p class="lead" data-i="team_p"></p></div>
+  <div class="card profile">
+    <div class="avatar">SK</div>
+    <div>
+      <h3>Sitaram Kadam</h3>
+      <span class="badge" data-i="lead"></span>
+      <p class="pt">Team Agrinova Tech</p>
+      <div class="pl">
+        <a href="https://www.linkedin.com/in/sitaram-kadam-7a05a1387" target="_blank" rel="noopener">LinkedIn</a>
+        <a href="https://wa.me/919699985867" target="_blank" rel="noopener">WhatsApp</a>
+        <a href="mailto:smartagriculture2006@gmail.com">Gmail</a>
+      </div>
+    </div>
+  </div>
+</div></section>
+
+<section id="contact"><div class="wrap">
+  <div class="sh"><h2 data-i="ct_h"></h2><p class="lead" data-i="ct_p"></p></div>
+  <div class="contact">
+    <a class="card ct" href="https://wa.me/919699985867" target="_blank" rel="noopener">
+      <span class="ico" style="background:#25a244"><svg viewBox="0 0 24 24"><path d="M12 3a9 9 0 0 0-7.7 13.6L3 21l4.5-1.2A9 9 0 1 0 12 3z"/><path d="M9 8c0 4 3 7 7 7l1.5-2-2.5-1.2-1 1a5 5 0 0 1-2.3-2.3l1-1L11.5 8.5z"/></svg></span>
+      <div><b>WhatsApp</b><span>+91 96999 85867</span></div></a>
+    <a class="card ct" href="mailto:smartagriculture2006@gmail.com">
+      <span class="ico" style="background:#d93025"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 7l9 6 9-6"/></svg></span>
+      <div><b>Gmail</b><span>smartagriculture2006@gmail.com</span></div></a>
+    <a class="card ct" href="https://www.linkedin.com/in/sitaram-kadam-7a05a1387" target="_blank" rel="noopener">
+      <span class="ico" style="background:#0a66c2"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="3"/><path d="M8 10v6M8 7.5v.01M12 16v-6M12 12.5c0-1.5 1-2.5 2.5-2.5S17 11 17 12.5V16"/></svg></span>
+      <div><b>LinkedIn</b><span>Sitaram Kadam</span></div></a>
+    <a class="card ct" href="https://www.instagram.com/_suraj_0402_?mdxt=dXllZTlmaGlzbjcw" target="_blank" rel="noopener">
+      <span class="ico" style="background:#c13584"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="5"/><circle cx="12" cy="12" r="4"/><path d="M17.5 6.5v.01"/></svg></span>
+      <div><b>Instagram</b><span>@_suraj_0402_</span></div></a>
+  </div>
+</div></section>
+</main>
+
+<footer><div class="wrap">
+  <svg width="48" height="48" viewBox="0 0 120 120"><use href="#logo"/></svg>
+  <p><b>TEAM AGRINOVA TECH</b><br>Think. Create. Innovate. Present.<br><span data-i="foot"></span></p>
+  <div class="fl"><a href="#live" data-i="nav_live"></a><a href="#about" data-i="nav_about"></a><a href="#work" data-i="nav_work"></a><a href="#software" data-i="nav_soft"></a><a href="#team" data-i="nav_team"></a><a href="#contact" data-i="nav_contact"></a></div>
+</div></footer>
+
+<button id="top" aria-label="Back to top" onclick="window.scrollTo({top:0})"><svg viewBox="0 0 24 24"><path d="M12 19V5M5 12l7-7 7 7"/></svg></button>
+
+<script>
+// ===== फक्त हे बदला / Change only these =====
+const CHANNEL_ID = "3549701";  // ThingSpeak channel ID
+const READ_KEY   = "";                 // channel public असेल तर रिकामे
+// ============================================
+const REFRESH_MS = 20000, OFFLINE_AFTER_S = 90;
+
+const T = {
+en:{nav_live:"Live",nav_about:"About",nav_work:"How it works",nav_soft:"Software",nav_team:"Team",nav_contact:"Contact",
+h_title:"Solar Powered Smart Agriculture System",h_sub:"Sensors and an ESP32 decide when to water, automatically. Free solar energy, less water wasted, no constant field visits.",
+c1:"Sense",c2:"Decide",c3:"Irrigate",c4:"Monitor",h_btn:"See live readings",
+live_h:"Live monitoring",live_p:"Readings sent by the running project. Open this page on any phone to check your field.",
+on:"Project is online",off:"Your operating project is off",off_sub:"No data received. The connection with the project is lost or it is switched off.",
+setup:"Setup pending: add the ThingSpeak Channel ID in index.html",
+last:"Last update",ago:"s ago",
+t_temp:"Temperature",t_hum:"Air humidity",t_soil:"Soil moisture",t_tank:"Water tank",t_rain:"Rain",t_pump:"Pump / Valve",
+rain_y:"Raining",rain_n:"No rain",p_on:"ON",p_off:"OFF",
+live_note:"If the project is off, all readings show a dash. Irrigation rules keep running on the ESP32 even if the internet is down.",
+a_h:"About the project",a_p:"Farming needs water and power at the right time. Our project is a solar-powered smart irrigation system: sensors read the field and the ESP32 waters the crop only when it is needed.",
+prob_h:"Problem statement",need:"The need: a solar-powered, automated irrigation system with real-time monitoring and efficient water management.",
+probs:[["Unreliable power","Grid supply is irregular in many farming areas."],["Water wastage","Fixed-schedule watering ignores real soil needs."],["High irrigation cost","Diesel and grid power raise running expenses."],["Manual monitoring","Constant field visits cost time and labor."]],
+sol_h:"Our solution",
+sols:[["Solar power","Panel and charge controller fill a 12 V battery; a buck converter gives 5 V / 3.3 V."],["Sensing","Soil moisture, temperature, humidity, rain and water level sensors."],["ESP32 control","Converts raw values to % and checks thresholds every 2 s."],["Irrigation","Relay drives the pump and valve; water reaches crops only when needed."],["Monitoring","LCD, phone web page and this live website show readings and status."],["Low cost","Free solar and affordable parts; adaptable to different crops and soils."]],
+w_h:"How it works",w_p:"Power supply, sensing and control, and action with monitoring work together as one system.",
+blocks:[["Power supply","Solar panel, charge controller, 12 V battery and DC-DC converter."],["Sensing & control","Field sensors feed the ESP32, which decides and commands."],["Action & monitoring","Pump and valve act; LCD and web show status."]],
+flow_h:"Work flow",flow:[["Power","Panel charges the battery."],["Sense","Reads soil, temperature, humidity, rain and tank level."],["Convert","Raw values (0-4095) become 0-100 %."],["Decide","Every 2 s readings are checked against thresholds."],["Act","Relay switches the pump and valve."],["Report","LCD, web page and cloud show live data."]],
+rule:"Pump runs only if <b>soil moisture is below 35 %</b> AND <b>tank is above 20 %</b> AND <b>no rain is detected</b>. It stops when soil reaches <b>60 %</b>.",
+s_h:"Software design",s_p:"One non-blocking Arduino C++ program on the ESP32 reads the sensors, decides every 2 seconds and drives a single pump / valve relay.",
+on_h:"Pump turns ON when all are true",on_l:["Soil moisture below 35 %","No rain detected","Tank level 20 % or more","Rest period not active"],
+off_h:"Pump turns OFF when any is true",off_l:["Rain detected","Tank below 20 % (dry-run protection)","Soil 60 % or more","Ran for 5 minutes (then 10 minutes rest)"],
+prot_h:"Built-in protection",prot:[["Rain override","Pump stops at once and will not start in rain."],["Dry-run protection","Pump stops if the tank falls below 20 %."],["Run-time limit","Maximum 5 minutes per cycle, then 10 minutes rest."],["Hysteresis","Start at 35 %, stop at 60 % avoids rapid switching."],["Safe boot","Relay is released first, so the pump is OFF at power-up."],["Fault display","DHT22 failure shows an error; Wi-Fi failure never stops irrigation."]],
+pin_h:"ESP32 pin map",res_h:"Result",ach_h:"What it achieves",fut_h:"Future scope",
+ach:["Fully automatic, sensor-driven irrigation","Saves water: waters only when soil is dry, tank has water and no rain","Pump protected by run-time, rest and tank interlocks","Live data on LCD, phone and this website"],
+fut:["Cloud history charts (MQTT / Firebase)","Manual ON / OFF button and adjustable thresholds","Light and pH sensor support","SMS / app alerts for low tank or faults"],
+team_h:"Project team",team_p:"Team Agrinova Tech",lead:"Project Lead",member:"Team member",
+ct_h:"Contact the project developer",ct_p:"Project lead: Sitaram Kadam",foot:"Solar Powered Smart Agriculture System"},
+mr:{nav_live:"लाइव्ह",nav_about:"प्रकल्पाबद्दल",nav_work:"कसे चालते",nav_soft:"सॉफ्टवेअर",nav_team:"टीम",nav_contact:"संपर्क",
+h_title:"सौर ऊर्जेवर चालणारी स्मार्ट कृषी प्रणाली",h_sub:"सेन्सर आणि ESP32 आपोआप ठरवतात पाणी केव्हा द्यायचे. मोफत सौर ऊर्जा, कमी पाणी वाया, शेतात सतत जाण्याची गरज नाही.",
+c1:"ओळखा",c2:"ठरवा",c3:"सिंचन करा",c4:"देखरेख",h_btn:"लाइव्ह रीडिंग पहा",
+live_h:"लाइव्ह देखरेख",live_p:"चालू प्रकल्पाने पाठवलेले रीडिंग. कोणत्याही फोनवर हे पेज उघडून तुमचे शेत पाहा.",
+on:"प्रकल्प चालू आहे",off:"तुमचा चालू असलेला प्रकल्प बंद आहे",off_sub:"डेटा मिळत नाही. प्रकल्पाशी संपर्क तुटला आहे किंवा तो बंद आहे.",
+setup:"सेटअप बाकी: index.html मध्ये ThingSpeak Channel ID टाका",
+last:"शेवटचे अपडेट",ago:"से. पूर्वी",
+t_temp:"तापमान",t_hum:"हवेतील आर्द्रता",t_soil:"मातीतील ओलावा",t_tank:"टाकीतील पाणी",t_rain:"पाऊस",t_pump:"पंप / व्हॉल्व्ह",
+rain_y:"पाऊस सुरू",rain_n:"पाऊस नाही",p_on:"चालू",p_off:"बंद",
+live_note:"प्रकल्प बंद असल्यास सर्व रीडिंगच्या जागी डॅश दिसतो. इंटरनेट गेले तरी ESP32 वर सिंचनाचे नियम चालूच राहतात.",
+a_h:"प्रकल्पाबद्दल",a_p:"शेतीला योग्य वेळी पाणी आणि वीज लागते. आमचा प्रकल्प सौर ऊर्जेवर चालणारी स्मार्ट सिंचन प्रणाली आहे: सेन्सर शेताची स्थिती वाचतात आणि ESP32 गरज असेल तेव्हाच पाणी देतो.",
+prob_h:"समस्या",need:"गरज: सौर ऊर्जेवर चालणारी, स्वयंचलित सिंचन प्रणाली, रिअल-टाइम देखरेख आणि कार्यक्षम पाणी व्यवस्थापन.",
+probs:[["अनियमित वीज","अनेक शेती भागात वीजपुरवठा अनियमित असतो."],["पाण्याची नासाडी","ठरावीक वेळापत्रकाने पाणी दिल्यास मातीची खरी गरज दुर्लक्षित होते."],["जास्त सिंचन खर्च","डिझेल आणि वीज यामुळे खर्च वाढतो."],["हाताने देखरेख","शेतात सतत जावे लागते, वेळ आणि श्रम जातात."]],
+sol_h:"आमचा उपाय",
+sols:[["सौर ऊर्जा","पॅनल आणि चार्ज कंट्रोलर 12 V बॅटरी भरतात; बक कन्व्हर्टर 5 V / 3.3 V देतो."],["सेन्सिंग","मातीतील ओलावा, तापमान, आर्द्रता, पाऊस आणि पाण्याची पातळी सेन्सर."],["ESP32 नियंत्रण","रॉ मूल्ये % मध्ये बदलून दर 2 सेकंदांनी मर्यादा तपासतो."],["सिंचन","रिले पंप आणि व्हॉल्व्ह चालवतो; गरज असेल तेव्हाच पाणी मिळते."],["देखरेख","LCD, फोनवरील वेब पेज आणि ही लाइव्ह वेबसाइट रीडिंग आणि स्थिती दाखवतात."],["कमी खर्च","मोफत सौर ऊर्जा आणि स्वस्त भाग; विविध पिके आणि मातीसाठी बदलता येते."]],
+w_h:"हे कसे चालते",w_p:"वीजपुरवठा, सेन्सिंग व नियंत्रण आणि कृती व देखरेख हे सगळे मिळून एक प्रणाली बनते.",
+blocks:[["वीजपुरवठा","सोलर पॅनल, चार्ज कंट्रोलर, 12 V बॅटरी आणि DC-DC कन्व्हर्टर."],["सेन्सिंग व नियंत्रण","शेतातील सेन्सर ESP32 ला माहिती देतात, तो निर्णय घेतो."],["कृती व देखरेख","पंप आणि व्हॉल्व्ह काम करतात; LCD आणि वेबवर स्थिती दिसते."]],
+flow_h:"कार्यपद्धती",flow:[["वीज","पॅनल बॅटरी चार्ज करते."],["ओळख","माती, तापमान, आर्द्रता, पाऊस आणि टाकीची पातळी वाचतो."],["रूपांतर","रॉ मूल्ये (0-4095) 0-100 % मध्ये बदलतात."],["निर्णय","दर 2 सेकंदांनी रीडिंग मर्यादांशी तपासले जातात."],["कृती","रिले पंप आणि व्हॉल्व्ह चालू/बंद करतो."],["अहवाल","LCD, वेब पेज आणि क्लाउडवर लाइव्ह डेटा दिसतो."]],
+rule:"पंप फक्त तेव्हा चालतो जेव्हा <b>माती 35 % पेक्षा कमी</b> आणि <b>टाकी 20 % पेक्षा जास्त</b> आणि <b>पाऊस नाही</b>. माती <b>60 %</b> झाली की तो बंद होतो.",
+s_h:"सॉफ्टवेअर रचना",s_p:"ESP32 वरील एकच Arduino C++ प्रोग्राम सेन्सर वाचतो, दर 2 सेकंदांनी निर्णय घेतो आणि एका पंप / व्हॉल्व्ह रिलेला चालवतो.",
+on_h:"पंप चालू होतो जेव्हा सर्व खरे असतील",on_l:["माती ओलावा 35 % पेक्षा कमी","पाऊस नाही","टाकी पातळी 20 % किंवा जास्त","विश्रांतीचा काळ चालू नाही"],
+off_h:"पंप बंद होतो जेव्हा कोणतेही एक खरे असेल",off_l:["पाऊस आढळला","टाकी 20 % खाली (कोरडा चालू नये म्हणून)","माती 60 % किंवा जास्त","5 मिनिटे चालला (मग 10 मिनिटे विश्रांती)"],
+prot_h:"अंगभूत सुरक्षा",prot:[["पाऊस ओव्हरराइड","पाऊस असेल तर पंप लगेच थांबतो आणि सुरू होत नाही."],["कोरडा चालण्यापासून संरक्षण","टाकी 20 % खाली गेली तर पंप थांबतो."],["चालण्याची मर्यादा","एका फेरीत कमाल 5 मिनिटे, मग 10 मिनिटे विश्रांती."],["हिस्टेरेसिस","35 % ला सुरू आणि 60 % ला बंद, त्यामुळे सतत चालू-बंद होत नाही."],["सुरक्षित सुरुवात","आधी रिले सोडला जातो, त्यामुळे चालू होताना पंप बंद असतो."],["बिघाड दर्शक","DHT22 बिघडल्यास त्रुटी दिसते; Wi-Fi गेले तरी सिंचन थांबत नाही."]],
+pin_h:"ESP32 पिन नकाशा",res_h:"निष्कर्ष",ach_h:"काय साध्य होते",fut_h:"भविष्यातील सुधारणा",
+ach:["पूर्णपणे स्वयंचलित, सेन्सरवर आधारित सिंचन","पाण्याची बचत: माती कोरडी, टाकीत पाणी आणि पाऊस नसेल तेव्हाच पाणी","चालण्याची वेळ, विश्रांती आणि टाकी तपासणीमुळे पंप सुरक्षित","LCD, फोन आणि या वेबसाइटवर लाइव्ह डेटा"],
+fut:["क्लाउड इतिहास आलेख (MQTT / Firebase)","मॅन्युअल चालू/बंद बटण आणि बदलता येणाऱ्या मर्यादा","प्रकाश आणि pH सेन्सर","टाकी कमी किंवा बिघाडाचे SMS / अॅप अलर्ट"],
+team_h:"प्रकल्प टीम",team_p:"टीम Agrinova Tech",lead:"प्रोजेक्ट लीड",member:"टीम सदस्य",
+ct_h:"प्रकल्प विकसकाशी संपर्क",ct_p:"प्रोजेक्ट लीड: सीताराम कदम",foot:"सौर ऊर्जेवर चालणारी स्मार्ट कृषी प्रणाली"}
+};
+
+let lang = "mr", lastData = null, state = "setup";
+const $ = id => document.getElementById(id);
+const I = p => `<span class="ic"><svg viewBox="0 0 24 24">${p}</svg></span>`;
+const ICONS = [
+  '<circle cx="12" cy="12" r="4"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M4.9 19.1L7 17M17 7l2.1-2.1"/>',
+  '<path d="M3 12h4l3-8 4 16 3-8h4"/>',
+  '<rect x="6" y="6" width="12" height="12" rx="2"/><path d="M9 2v4M15 2v4M9 18v4M15 18v4M2 9h4M2 15h4M18 9h4M18 15h4"/>',
+  '<path d="M12 3c4 5 6 8 6 11a6 6 0 0 1-12 0c0-3 2-6 6-11z"/>',
+  '<rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8M12 16v4"/>',
+  '<circle cx="12" cy="12" r="9"/><path d="M14.5 9c-.6-.8-1.5-1.2-2.5-1.2-1.4 0-2.5.8-2.5 1.9 0 2.7 5 1.3 5 4 0 1.1-1.1 1.9-2.5 1.9-1.1 0-2-.4-2.6-1.2M12 6v1.8M12 16.2V18"/>'
+];
+const cards = (id, arr, cls="") => $(id).innerHTML = arr.map(a => `<div class="card ${cls}"><h3>${a[0]}</h3><p>${a[1]}</p></div>`).join("");
+const icards = (id, arr) => $(id).innerHTML = arr.map((a,i) => `<div class="card">${I(ICONS[i%ICONS.length])}<h3>${a[0]}</h3><p>${a[1]}</p></div>`).join("");
+const list  = (id, arr) => $(id).innerHTML = arr.map(a => `<li>${a}</li>`).join("");
+
+function render(){
+  const t = T[lang];
+  document.documentElement.lang = lang;
+  document.querySelectorAll("[data-i]").forEach(e => { e.innerHTML = t[e.dataset.i] ?? ""; });
+  cards("probs",t.probs,"prob"); icards("sols",t.sols); cards("blocks",t.blocks,"blk"); cards("flow",t.flow); icards("prot",t.prot);
+  list("onL",t.on_l); list("offL",t.off_l); list("ach",t.ach); list("fut",t.fut);
+  $("langBtn").textContent = lang === "mr" ? "EN" : "मराठी";
+  paint();
+}
+function setLang(l){ lang = l; $("gate").style.display = "none"; render(); window.scrollTo(0,0); }
+function toggleLang(){ lang = lang === "mr" ? "en" : "mr"; render(); }
+
+const num = v => { const n = parseFloat(v); return isNaN(n) ? null : n; };
+function dash(){
+  ["temp","hum","soil","tank"].forEach(k => $("v_"+k).textContent = "–");
+  $("b_soil").style.width = "0"; $("b_tank").style.width = "0";
+  $("v_rain").textContent = "–"; $("v_pump").textContent = "–"; $("tilePump").classList.remove("on");
+  $("hv_soil").textContent = "–"; $("hv_tank").textContent = "–"; $("hv_pump").textContent = "–"; $("hv_pump").classList.remove("on");
+  $("hb_soil").style.width = "0"; $("hb_tank").style.width = "0";
+}
+function paint(){
+  const t = T[lang], st = $("st"), pill = $("hPill");
+  if (state === "on" && lastData){
+    const d = lastData, f = k => num(d["field"+k]);
+    st.className = "status on"; $("stText").textContent = t.on;
+    pill.className = "live-pill on"; $("hPillT").textContent = t.on;
+    const age = Math.round((Date.now() - new Date(d.created_at)) / 1000);
+    $("stSub").textContent = t.last + ": " + age + " " + t.ago;
+    $("v_temp").textContent = f(1) === null ? "–" : f(1).toFixed(1);
+    $("v_hum").textContent  = f(2) === null ? "–" : Math.round(f(2));
+    $("v_soil").textContent = f(3) === null ? "–" : Math.round(f(3));
+    $("v_tank").textContent = f(4) === null ? "–" : Math.round(f(4));
+    $("b_soil").style.width = (f(3) || 0) + "%"; $("b_tank").style.width = (f(4) || 0) + "%";
+    $("v_rain").textContent = f(6) === 1 ? t.rain_y + (f(5) !== null ? " (" + Math.round(f(5)) + "%)" : "") : t.rain_n;
+    const pump = f(7) === 1;
+    $("v_pump").textContent = pump ? t.p_on : t.p_off;
+    $("tilePump").classList.toggle("on", pump);
+    $("hv_soil").textContent = $("v_soil").textContent; $("hv_tank").textContent = $("v_tank").textContent;
+    $("hb_soil").style.width = (f(3) || 0) + "%"; $("hb_tank").style.width = (f(4) || 0) + "%";
+    $("hv_pump").textContent = pump ? t.p_on : t.p_off; $("hv_pump").classList.toggle("on", pump);
+  } else {
+    dash();
+    st.className = "status off";
+    pill.className = "live-pill"; $("hPillT").textContent = state === "setup" ? "–" : t.p_off;
+    $("stText").textContent = state === "setup" ? t.setup : t.off;
+    $("stSub").textContent = state === "setup" ? "" : t.off_sub;
+  }
+}
+async function load(){
+  if (CHANNEL_ID === "YOUR_CHANNEL_ID"){ state = "setup"; lastData = null; return paint(); }
+  try{
+    const url = "https://api.thingspeak.com/channels/" + CHANNEL_ID + "/feeds/last.json" + (READ_KEY ? "?api_key=" + READ_KEY : "");
+    const r = await fetch(url, {cache:"no-store"});
+    if (!r.ok) throw 0;
+    const d = await r.json();
+    if (!d || !d.created_at) throw 0;
+    const age = (Date.now() - new Date(d.created_at)) / 1000;
+    if (age > OFFLINE_AFTER_S){ state = "off"; lastData = null; }
+    else { state = "on"; lastData = d; }
+  } catch(e){ state = "off"; lastData = null; }
+  paint();
+}
+
+// scroll progress, back-to-top, active nav
+function onScroll(){
+  const h = document.documentElement, max = h.scrollHeight - h.clientHeight;
+  $("prog").style.width = (max > 0 ? (h.scrollTop / max) * 100 : 0) + "%";
+  $("top").classList.toggle("show", h.scrollTop > 600);
+}
+addEventListener("scroll", onScroll, {passive:true});
+if ("IntersectionObserver" in window){
+  const links = [...document.querySelectorAll("#nav a")];
+  const io = new IntersectionObserver(es => es.forEach(e => {
+    if (e.isIntersecting) links.forEach(a => a.classList.toggle("act", a.getAttribute("href") === "#" + e.target.id));
+  }), {rootMargin:"-45% 0px -50% 0px"});
+  ["live","about","work","software","team","contact"].forEach(id => io.observe($(id)));
+}
+render(); load(); onScroll(); setInterval(load, REFRESH_MS); setInterval(paint, 5000);
+</script>
+</body>
+</html>
