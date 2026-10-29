@@ -355,9 +355,9 @@ footer p{margin:10px 0 0}
 <button id="top" aria-label="Back to top" onclick="window.scrollTo({top:0})"><svg viewBox="0 0 24 24"><path d="M12 19V5M5 12l7-7 7 7"/></svg></button>
 
 <script>
-// ===== फक्त हे बदला / Change only these =====
+// ===== / Change only these =====
 const CHANNEL_ID = "3549701";  // ThingSpeak channel ID
-const READ_KEY   = "";                 // channel public असेल तर रिकामे
+const READ_KEY   = "";                 // channel public
 // ============================================
 const REFRESH_MS = 20000, OFFLINE_AFTER_S = 90;
 
@@ -484,7 +484,7 @@ function paint(){
   }
 }
 async function load(){
-  if (CHANNEL_ID === "YOUR_CHANNEL_ID"){ state = "setup"; lastData = null; return paint(); }
+  if (CHANNEL_ID === "3549701"){ state = "setup"; lastData = null; return paint(); }
   try{
     const url = "https://api.thingspeak.com/channels/" + CHANNEL_ID + "/feeds/last.json" + (READ_KEY ? "?api_key=" + READ_KEY : "");
     const r = await fetch(url, {cache:"no-store"});
